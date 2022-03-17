@@ -1,48 +1,49 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+var express = require('express'),
+    app = express(),
+    partials = require('express-partials'),      // 라이브러리에 대한 레퍼런스 생성 
+    cookieParser = require('cookie-parser'),     // 쿠키 관련 사용을 위한 레퍼런스 생성
+    session = require('express-session');        // 세션 관련 사용을 위한 레퍼런스 생성
 
-var app = express();
+// 03.17 : routes 추가
+var routes = require('./routes');
 
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
+// 03.17 : middle 404 추가
+var errorHandlers = require('./middleware/errorhandlers');
+
+// 03.17 : log 추가
+var log = require('./middleware/log');
+
 app.set('view engine', 'ejs');
+app.use(log.logger);
+app.use(express.static(__dirname + '/static'));
 
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// 03.17 : cookie 사용
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+// 03.17 : routes 추가
+app.get('/', routes.index);
+app.get('/login', routes.login);
+app.post('/login', routes.loginProcess);
+app.get('/chat', routes.chat);
 
-// catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  next(createError(404));
+// 03.17 : 에러
+app.get('/error', function(req, res, next) {
+  next(new Error('A Contrived error'));
 });
 
-// error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+app.use(partials());   // 미들웨어 추가
+app.set('view options', {defaultLayout: 'layout'});
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
-});
+// 03.17 : 에러 헨들러
+app.use(errorHandlers.error);
+app.use(errorHandlers.notFound);
 
-app.get('*', function(req, res) {
-  res.send('Express Response');
-});
+// 03.17 : 세션
+app.use(cookieParser());
+app.use(session({secret: 'secret'}));
 
 app.listen(4444);
-console.log("App server running on port 4444");
+console.log("App server runnning on port 4444");
 
 module.exports = app;
